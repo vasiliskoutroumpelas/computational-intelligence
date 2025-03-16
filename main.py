@@ -1,87 +1,73 @@
-# %%
-import pandas as pd
-
-# Φόρτωση του dataset
-df = pd.read_csv("alzheimers_disease_data.csv")
-
-# Εμφάνιση των πρώτων 5 γραμμών
-print(df.head())
-
-# Επισκόπηση τύπων δεδομένων
-print(df.info())
-
-# Έλεγχος για ελλείπουσες τιμές
-print(df.isnull().sum())
-
-# Εμφάνιση αριθμού στηλών
-I = len(df.columns)
-print(f"Αριθμός στηλών {len(df.columns)}")
-
-
-# %%
-from sklearn.model_selection import train_test_split
+import numpy as np
 from sklearn.preprocessing import StandardScaler
-
-# Αφαίρεση μη χρήσιμων στηλών
-df_cleaned = df.drop(columns=["PatientID", "DoctorInCharge"])
-
-# Διαχωρισμός χαρακτηριστικών (X) και στόχου (y)
-X = df_cleaned.drop(columns=["Diagnosis"])
-y = df_cleaned["Diagnosis"]
-
-# Εμφάνιση νέου αριθμού στηλών
-I = len(X.columns)
-print(f"Αριθμός στηλών για είσοδο {I}")
-
-
-# Κανονικοποίηση αριθμητικών χαρακτηριστικών
-scaler = StandardScaler()
-X_scaled = scaler.fit_transform(X)
-
-# Διαχωρισμός σε σύνολα εκπαίδευσης και ελέγχου (80-20)
-X_train, X_test, y_train, y_test = train_test_split(X_scaled, y, test_size=0.2, random_state=42, stratify=y)
-
-# Εκτύπωση μεγεθών συνόλων
-print(f"Training set size: {X_train.shape}")
-print(f"Test set size: {X_test.shape}")
-
-
-# %%
+from sklearn.model_selection import KFold
+import keras
 from tensorflow.keras.models import Sequential # type: ignore
 from tensorflow.keras.layers import Dense # type: ignore
+from tensorflow.keras.layers import Input # type: ignore
+from tensorflow.keras.metrics import MeanSquaredError # type: ignore
+import pandas as pd
+import matplotlib.pyplot as plt
 
-H  = I//2  # Αριθμός νευρώνων στο κρυφό επίπεδο
+# Read dataset 
+dataset = pd.read_csv("alzheimers_disease_data.csv")
 
-# Δημιουργία του μοντέλου
-model = Sequential([
-    Dense(H, activation='relu', input_shape=(X_train.shape[1],)),  # Κρυφό επίπεδο
-    Dense(1, activation='sigmoid')  # Έξοδος για binary classification
-])
+# Αφαίρεση μη χρήσιμων στηλών
+dataset = dataset.drop(columns=["PatientID", "DoctorInCharge"])
 
-# Σύνταξη του μοντέλου
-model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
+# Split into input and output
+X = dataset.drop(columns=["Diagnosis"])
+Y = dataset["Diagnosis"]
 
-# Εκτύπωση περίληψης του μοντέλου
-model.summary()
+# Features normalization
+X = StandardScaler().fit_transform(X=X)
 
+I = X.shape[1]  # Number of columns
+H_list = [I // 2, 2 * I//3, I, 2 * I]  # Number of neurons in the hidden layer
 
-# %%
-from sklearn.model_selection import KFold
-import numpy as np
+H = I // 2 # Number of neurons in the hidden layer
 
-kf = KFold(n_splits=5, shuffle=True, random_state=42)
-fold = 1
-
-for train_index, val_index in kf.split(X_train):
-    print(f"Training fold {fold}...")
-    
-    X_train_fold, X_val_fold = X_train[train_index], X_train[val_index]
-    y_train_fold, y_val_fold = y_train.iloc[train_index], y_train.iloc[val_index]
-
-    # Εκπαίδευση
-    model.fit(X_train_fold, y_train_fold, epochs=50, batch_size=32, validation_data=(X_val_fold, y_val_fold), verbose=1)
-    
-    fold += 1
+# Split the data to training and testing data 5-Fold
+kfold = KFold(n_splits=5, shuffle=True)
 
 
+h_list = [0.001, 0.001, 0.05, 0.1]
+m_list = [0.2, 0.6, 0.6, 0.6]
+
+h = 0.001
+m = 0.2
+
+for j in range(4):
+    # print("Learning rate: ", h_list[j], " Momentum: ", m_list[j])
+    print("Number of neurons in the hidden layer: ", H_list[j])
+    for i, (train, test) in enumerate(kfold.split(X)):
+        lossList = []
+        mseList = []
+        accuracyList = []
+        
+        # Create model
+        model = Sequential()
+
+        model.add(Input(shape=(I,)))
+        model.add(Dense(H_list[j], activation="relu"))
+        model.add(Dense(1, activation="sigmoid"))
+
+        # Compile model
+        optimizer = keras.optimizers.SGD(learning_rate=h, momentum=m)
+        model.compile(loss='binary_crossentropy', optimizer=optimizer, metrics=[MeanSquaredError(), 'accuracy'])
+
+        # Fit model
+        model.fit(X[train], Y[train], epochs=32, batch_size=32, verbose=0)
+
+        # Evaluate model
+        scores = model.evaluate(X[test], Y[test], verbose=0)
+        lossList.append(scores[0])  # Append loss, which is the first element in scores
+        mseList.append(scores[1])   # Append MSE, which is the second element in scores
+        accuracyList.append(scores[2])  # Append accuracy, which is the third element in scores
+        print("Fold :", i, " Loss:", scores[0], " MSE:", scores[1], " Accuracy:", scores[2])
+
+    print("Loss: ", np.mean(lossList))
+    print("MSE: ", np.mean(mseList))
+    print("Accuracy: ", np.mean(accuracyList))
+    print("\n")
 
