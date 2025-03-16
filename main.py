@@ -47,8 +47,8 @@ print(f"Test set size: {X_test.shape}")
 
 
 # %%
-from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import Dense
+from tensorflow.keras.models import Sequential # type: ignore
+from tensorflow.keras.layers import Dense # type: ignore
 
 H  = I//2  # Αριθμός νευρώνων στο κρυφό επίπεδο
 
