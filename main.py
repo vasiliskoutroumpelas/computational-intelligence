@@ -13,6 +13,10 @@ print(df.info())
 # Έλεγχος για ελλείπουσες τιμές
 print(df.isnull().sum())
 
+# Εμφάνιση αριθμού στηλών
+I = len(df.columns)
+print(f"Αριθμός στηλών {len(df.columns)}")
+
 
 # %%
 from sklearn.model_selection import train_test_split
@@ -24,6 +28,11 @@ df_cleaned = df.drop(columns=["PatientID", "DoctorInCharge"])
 # Διαχωρισμός χαρακτηριστικών (X) και στόχου (y)
 X = df_cleaned.drop(columns=["Diagnosis"])
 y = df_cleaned["Diagnosis"]
+
+# Εμφάνιση νέου αριθμού στηλών
+I = len(X.columns)
+print(f"Αριθμός στηλών για είσοδο {I}")
+
 
 # Κανονικοποίηση αριθμητικών χαρακτηριστικών
 scaler = StandardScaler()
@@ -38,14 +47,14 @@ print(f"Test set size: {X_test.shape}")
 
 
 # %%
-import tensorflow as tf
-from tensorflow import keras
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Dense
 
+H  = I//2  # Αριθμός νευρώνων στο κρυφό επίπεδο
+
 # Δημιουργία του μοντέλου
 model = Sequential([
-    Dense(64, activation='relu', input_shape=(X_train.shape[1],)),  # Κρυφό επίπεδο
+    Dense(H, activation='relu', input_shape=(X_train.shape[1],)),  # Κρυφό επίπεδο
     Dense(1, activation='sigmoid')  # Έξοδος για binary classification
 ])
 
